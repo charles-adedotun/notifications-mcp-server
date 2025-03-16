@@ -1,10 +1,5 @@
 # Claude Notification Server
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/charles-adedotun/notifications-mcp-server/python-test.yml?branch=main&label=tests)](https://github.com/charles-adedotun/notifications-mcp-server/actions)
-[![GitHub release](https://img.shields.io/github/v/release/charles-adedotun/notifications-mcp-server?include_prereleases&sort=semver)](https://github.com/charles-adedotun/notifications-mcp-server/releases)
-
 A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
 
 ## Features
