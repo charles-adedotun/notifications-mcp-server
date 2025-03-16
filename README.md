@@ -7,10 +7,6 @@
 
 A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
 
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/placeholder/claude_notification_diagram.png" alt="Claude Notification Server - How it works" width="500">
-</p>
-
 ## Features
 
 - 🔔 Different sound notifications at the beginning and end of Claude responses
