@@ -152,7 +152,8 @@ def task_status(message: str = "Task completed") -> Dict[str, str]:
         "sound": sound_file
     }
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the notification server."""
     print(f"🔔 Claude Notification Server v{__version__}")
     print("📋 Available tool:")
     print("  • task_status: MUST be used at the start and end of every interaction")
@@ -162,4 +163,15 @@ if __name__ == "__main__":
     else:
         print("⚠️ Some sound files could not be found. Check configurations.")
     
-    mcp.run()
+    try:
+        mcp.run()
+    except KeyboardInterrupt:
+        print("\n⏹️ Server stopped by user")
+        return 0
+    except Exception as e:
+        logger.error(f"Error running server: {e}")
+        return 1
+    return 0
+
+if __name__ == "__main__":
+    exit(main())

@@ -1,6 +1,15 @@
 # Claude Notification Server
 
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/charles-adedotun/notifications-mcp-server/python-test.yml?branch=main&label=tests)](https://github.com/charles-adedotun/notifications-mcp-server/actions)
+[![GitHub release](https://img.shields.io/github/v/release/charles-adedotun/notifications-mcp-server?include_prereleases&sort=semver)](https://github.com/charles-adedotun/notifications-mcp-server/releases)
+
 A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/placeholder/claude_notification_diagram.png" alt="Claude Notification Server - How it works" width="500">
+</p>
 
 ## Features
 
@@ -40,6 +49,9 @@ A lightweight MCP server that provides auditory notifications for Claude Desktop
    
    # Or using standard pip
    pip install fastmcp
+   
+   # Or install directly from PyPI
+   pip install notifications-mcp-server
    ```
 
 6. **Register with Claude Desktop:**
@@ -48,14 +60,28 @@ A lightweight MCP server that provides auditory notifications for Claude Desktop
    ```
 
 7. **Verify installation:**
-   ```bash
-   fastmcp list
-   # You should see "notify-user" in the list
+   After installation, open Claude Desktop and check the Developer menu:
+   - Go to Help menu → Enable Developer Mode (if not already enabled)
+   - Look for the server in the Developer menu → MCP Log File
+   - Or simply try using Claude - you should hear the notification sounds
    ```
 
 ## How It Works
 
 Once installed, the server automatically connects with Claude Desktop and offers the `task_status` notification tool. Claude will call this tool at the start and end of each interaction, producing an audible notification.
+
+### Architecture
+
+```
+┌─────────────────┐     MCP Protocol      ┌─────────────────┐     System Command    ┌─────────────┐
+│                 │ ──────────────────>   │                 │ ──────────────────>   │             │
+│  Claude Desktop │                       │   Notification  │                       │ macOS Sound │
+│   Application   │ <──────────────────   │   MCP Server    │ <──────────────────   │    System   │
+│                 │                       │                 │                       │             │
+└─────────────────┘                       └─────────────────┘                       └─────────────┘
+```
+
+The Claude desktop application connects to the notification server using the Model Context Protocol (MCP). When Claude starts or completes processing, it calls the `task_status` tool, which triggers the appropriate sound using macOS's built-in audio system.
 
 ### The `task_status` Tool
 
@@ -159,10 +185,9 @@ afplay /System/Library/Sounds/Glass.aiff
 ### Claude Not Using Notifications
 
 1. **Check server status:**
-   ```bash
-   fastmcp list
-   # Should show "notify-user" in the active servers
-   ```
+   - In Claude Desktop, enable Developer Mode (Help menu → Enable Developer Mode)
+   - Check the MCP Log File in the Developer menu for connection logs
+   - If you don't see your server in the logs, try reinstalling it
 
 2. **Restart the server:**
    ```bash
@@ -183,10 +208,31 @@ fastmcp uninstall notify-user
 - **Main files:** notification_server.py, pyproject.toml
 - **Version:** 1.0.0
 
+### Running Tests
+
+```bash
+# Install test dependencies
+uv pip install pytest pytest-cov
+
+# Run tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=notification_server
+```
+
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+
+This project follows our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT License - feel free to use, modify, and distribute as needed.
+This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+
+## Acknowledgments
+
+- This project was inspired by the need for better auditory feedback when working with Claude
+- Built using the [FastMCP](https://github.com/anthropics/mcp) library from Anthropic
+- Special thanks to all contributors and the Claude community
