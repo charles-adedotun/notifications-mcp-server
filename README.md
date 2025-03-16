@@ -1,96 +1,192 @@
 # Claude Notification Server
 
-A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS.
+A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
 
 ## Features
 
-- ⚡ Sound notifications when Claude needs tool permission approval
-- ⚡ Sound notifications when Claude completes a task
-- Uses native macOS system sounds (`.aiff` files)
-- Allows customization of sounds via environment variables
+- 🔔 Different sound notifications at the beginning and end of Claude responses
+- 💻 Compatible with macOS native system sounds (`.aiff` files)
+- 🎵 Easily customizable notification sounds via environment variables
+- 🚀 Simple setup with minimal dependencies
 
-## Installation
+## Quick Start
 
-1. Ensure Python 3.8+ is installed
-2. Install dependencies:
+1. **Prerequisites:** Python 3.8+ and macOS
 
+2. **Clone the repository:**
+   ```bash
+   git clone https://github.com/charles-adedotun/notifications-mcp-server.git
+   cd notifications-mcp-server
+   ```
+
+3. **Make the server executable:**
+   ```bash
+   chmod +x notification_server.py
+   ```
+
+4. **Install uv (if not already installed):**
+   ```bash
+   # Option 1: Using curl
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Option 2: Using Homebrew
+   brew install uv
+   ```
+
+5. **Install dependencies:**
+   ```bash
+   # Using uv (recommended)
+   uv pip install fastmcp
+   
+   # Or using standard pip
+   pip install fastmcp
+   ```
+
+6. **Register with Claude Desktop:**
+   ```bash
+   fastmcp install notification_server.py
+   ```
+
+7. **Verify installation:**
+   ```bash
+   fastmcp list
+   # You should see "notify-user" in the list
+   ```
+
+## How It Works
+
+Once installed, the server automatically connects with Claude Desktop and offers the `task_status` notification tool. Claude will call this tool at the start and end of each interaction, producing an audible notification.
+
+### The `task_status` Tool
+
+This tool plays a sound notification to alert you when:
+- Claude begins processing your request ("Glass" sound by default)
+- Claude completes a task or finishes processing ("Hero" sound by default)
+
+The tool automatically detects whether it's being called at the start or end of a task based on the message parameter.
+
+**Instruction for Claude (automatically included in the tool's documentation):**
+- ALWAYS call this tool at the START of EVERY response
+- Call this tool BEFORE using any other tools
+- Call this tool at the END of conversations
+- Use this tool even if no other tools are needed
+
+## Customizing the Notification Sounds
+
+### Default Sounds
+- Start of task: "Glass.aiff" from macOS system sounds
+- End of task: "Hero.aiff" from macOS system sounds
+
+### Customizing Individual Sounds
+
+**For start notifications:**
 ```bash
-uv pip install fastmcp
-```
-
-3. Register with Claude Desktop:
-
-```bash
-cd /path/to/notifications-mcp-server
+export CLAUDE_START_SOUND="/System/Library/Sounds/Ping.aiff"
 fastmcp install notification_server.py
 ```
 
-Or run the installation script:
-
+**For completion notifications:**
 ```bash
-chmod +x install.sh
-./install.sh
+export CLAUDE_COMPLETE_SOUND="/System/Library/Sounds/Purr.aiff"
+fastmcp install notification_server.py
 ```
 
-## Usage
-
-The server provides two mandatory tools to the Claude LLM:
-
-### tool_permission_needed
-Claude MUST call this tool:
-- When attempting to use a tool that requires user approval
-- Before actions that will generate permission popups
-- When accessing external resources requiring authorization
-- ANYTIME Claude needs you to take an action to grant permissions
-
-### task_completed
-Claude MUST call this tool:
-- At the end of conversations
-- After completing significant tasks
-- When finishing data processing or generation
-- When the final response is ready
-
-## Customizing Sounds
-
-Default system sounds:
-- "Funk.aiff" for tool permission required
-- "Glass.aiff" for task completed
-
-Customize with environment variables:
-- `CLAUDE_TOOL_PERMISSION_SOUND`: Path for tool permission sound
-- `CLAUDE_COMPLETED_SOUND`: Path for completion sound
-
-Example:
+**Legacy option (same sound for both):**
 ```bash
-export CLAUDE_TOOL_PERMISSION_SOUND="/System/Library/Sounds/Blow.aiff"
-export CLAUDE_COMPLETED_SOUND="/System/Library/Sounds/Hero.aiff"
+export CLAUDE_NOTIFICATION_SOUND="/System/Library/Sounds/Submarine.aiff"
 fastmcp install notification_server.py
+```
+
+### Make it permanent
+Add to your shell profile (~/.zshrc, ~/.bashrc, or similar):
+```bash
+# For different sounds
+echo 'export CLAUDE_START_SOUND="/System/Library/Sounds/Ping.aiff"' >> ~/.zshrc
+echo 'export CLAUDE_COMPLETE_SOUND="/System/Library/Sounds/Purr.aiff"' >> ~/.zshrc
+
+# Or for the same sound
+# echo 'export CLAUDE_NOTIFICATION_SOUND="/System/Library/Sounds/Submarine.aiff"' >> ~/.zshrc
+
+source ~/.zshrc
 ```
 
 ### Available System Sounds
 
-macOS system sounds in `/System/Library/Sounds/`:
-Basso.aiff, Blow.aiff, Bottle.aiff, Frog.aiff, Funk.aiff, Glass.aiff, 
-Hero.aiff, Morse.aiff, Ping.aiff, Pop.aiff, Purr.aiff, Sosumi.aiff, 
-Submarine.aiff, Tink.aiff
+macOS provides these built-in sounds in `/System/Library/Sounds/`:
+
+| Sound Name | Description |
+|------------|-------------|
+| Basso.aiff | Deep, serious tone |
+| Blow.aiff | Wind-like sound |
+| Bottle.aiff | Bottle pop sound |
+| Frog.aiff | Frog croak |
+| Funk.aiff | Funky electronic sound |
+| Glass.aiff | Glass tapping sound (default) |
+| Hero.aiff | Triumphant sound |
+| Morse.aiff | Short morse code beep |
+| Ping.aiff | Classic ping notification |
+| Pop.aiff | Short pop sound |
+| Purr.aiff | Gentle purr sound |
+| Sosumi.aiff | Apple's classic alert |
+| Submarine.aiff | Submarine ping |
+| Tink.aiff | Light tink sound |
+
+You can preview these sounds with:
+```bash
+afplay /System/Library/Sounds/Glass.aiff
+```
+
+**Custom Sounds:** You can also use your own .aiff files by providing the full path.
 
 ## Troubleshooting
 
-If sound notifications aren't working:
-1. Verify you're on macOS
-2. Check sound files exist and are accessible
-3. Ensure system audio is not muted
-4. Verify custom sounds use a supported format (`.aiff` recommended)
-5. Look at the logs (the server now uses Python's logging module)
-6. Try running `afplay /System/Library/Sounds/Funk.aiff` to test sound playback
+### No Sound Playing
 
-If Claude is not using notification tools:
-1. Check server is running (`fastmcp list`)
-2. Verify tools are exposed (check server logs)
-3. Reinstall if necessary (`fastmcp install notification_server.py`)
-4. Explicitly instruct Claude to use notification tools
+1. **Check macOS compatibility:**
+   - This server uses the macOS `afplay` command and only works on macOS.
+
+2. **Verify sound settings:**
+   - Make sure your system volume is not muted
+   - Try `afplay /System/Library/Sounds/Glass.aiff` to test directly
+
+3. **Check notification file:**
+   - Ensure your custom sound file exists (if specified)
+   - Use only `.aiff` files for best compatibility
+
+4. **Check server logs:**
+   - Look for error messages in the terminal where the server is running
+
+### Claude Not Using Notifications
+
+1. **Check server status:**
+   ```bash
+   fastmcp list
+   # Should show "notify-user" in the active servers
+   ```
+
+2. **Restart the server:**
+   ```bash
+   fastmcp uninstall notify-user
+   fastmcp install notification_server.py
+   ```
+
+## Uninstallation
+
+To remove the notification server:
+```bash
+fastmcp uninstall notify-user
+```
 
 ## Development
 
-- Requirements: Python 3.8+, fastmcp library
-- Files: notification_server.py, install.sh, pyproject.toml
+- **Requirements:** Python 3.8+, fastmcp library
+- **Main files:** notification_server.py, pyproject.toml
+- **Version:** 1.0.0
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License - feel free to use, modify, and distribute as needed.

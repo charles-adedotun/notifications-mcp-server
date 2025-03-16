@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger("claude-notifications")
 
 # Version
-__version__ = "0.1.1"
+__version__ = "1.0.0"
 
 class SoundManager:
     """
@@ -25,35 +25,48 @@ class SoundManager:
     SYSTEM_SOUNDS_DIR = "/System/Library/Sounds/"
     
     # Default sounds (will be used if no custom sounds are specified)
-    DEFAULT_TOOL_PERMISSION_SOUND = "Funk.aiff"
-    DEFAULT_TASK_COMPLETED_SOUND = "Glass.aiff"
+    DEFAULT_START_SOUND = "Glass.aiff"
+    DEFAULT_COMPLETE_SOUND = "Hero.aiff"
     
     # Environment variable names for custom sounds
-    ENV_TOOL_PERMISSION_SOUND = "CLAUDE_TOOL_PERMISSION_SOUND"
-    ENV_COMPLETED_SOUND = "CLAUDE_COMPLETED_SOUND"
+    ENV_START_SOUND = "CLAUDE_START_SOUND"
+    ENV_COMPLETE_SOUND = "CLAUDE_COMPLETE_SOUND"
+    
+    # Legacy support for single sound config
+    ENV_NOTIFICATION_SOUND = "CLAUDE_NOTIFICATION_SOUND"
     
     @classmethod
-    def get_task_completed_sound(cls) -> str:
-        """Get the path to the sound file for task completed notifications."""
-        custom_sound = os.environ.get(cls.ENV_COMPLETED_SOUND)
+    def get_notification_sound(cls, is_start: bool = True) -> str:
+        """Get the path to the sound file for notifications.
+        
+        Args:
+            is_start: True for start sound, False for completion sound
+        """
+        # Check for legacy single sound configuration first
+        legacy_sound = os.environ.get(cls.ENV_NOTIFICATION_SOUND)
+        if legacy_sound and os.path.exists(legacy_sound):
+            logger.info(f"Using legacy custom notification sound: {legacy_sound}")
+            return legacy_sound
+        
+        # Get the appropriate environment variable and default sound based on notification type
+        if is_start:
+            env_var = cls.ENV_START_SOUND
+            default_sound = cls.DEFAULT_START_SOUND
+            sound_type = "start"
+        else:
+            env_var = cls.ENV_COMPLETE_SOUND
+            default_sound = cls.DEFAULT_COMPLETE_SOUND
+            sound_type = "completion"
+        
+        # Check for custom sound
+        custom_sound = os.environ.get(env_var)
         if custom_sound and os.path.exists(custom_sound):
-            logger.info(f"Using custom task completed sound: {custom_sound}")
+            logger.info(f"Using custom {sound_type} sound: {custom_sound}")
             return custom_sound
-            
-        sound_file = os.path.join(cls.SYSTEM_SOUNDS_DIR, cls.DEFAULT_TASK_COMPLETED_SOUND)
-        logger.info(f"Using default task completed sound: {sound_file}")
-        return sound_file
-    
-    @classmethod
-    def get_tool_permission_sound(cls) -> str:
-        """Get the path to the sound file for tool permission notifications."""
-        custom_sound = os.environ.get(cls.ENV_TOOL_PERMISSION_SOUND)
-        if custom_sound and os.path.exists(custom_sound):
-            logger.info(f"Using custom tool permission sound: {custom_sound}")
-            return custom_sound
-            
-        sound_file = os.path.join(cls.SYSTEM_SOUNDS_DIR, cls.DEFAULT_TOOL_PERMISSION_SOUND)
-        logger.info(f"Using default tool permission sound: {sound_file}")
+        
+        # Use default sound
+        sound_file = os.path.join(cls.SYSTEM_SOUNDS_DIR, default_sound)
+        logger.info(f"Using default {sound_type} sound: {sound_file}")
         return sound_file
     
     @staticmethod
@@ -88,73 +101,49 @@ class SoundManager:
             return False
 
 def verify_sounds():
-    """Verify that all configured sound files exist and are playable."""
-    sounds = {
-        "Tool permission": SoundManager.get_tool_permission_sound(),
-        "Task completed": SoundManager.get_task_completed_sound()
-    }
+    """Verify that the configured sound files exist and are playable."""
+    start_sound = SoundManager.get_notification_sound(is_start=True)
+    complete_sound = SoundManager.get_notification_sound(is_start=False)
     
-    all_valid = True
-    for name, path in sounds.items():
-        if not os.path.exists(path):
-            logger.warning(f"⚠️ Warning: {name} sound file not found at {path}")
-            all_valid = False
+    success = True
     
-    return all_valid
+    if not os.path.exists(start_sound):
+        logger.warning(f"⚠️ Warning: Start notification sound file not found at {start_sound}")
+        success = False
+    
+    if not os.path.exists(complete_sound):
+        logger.warning(f"⚠️ Warning: Completion notification sound file not found at {complete_sound}")
+        success = False
+    
+    return success
 
 # Create the MCP server
 mcp = FastMCP("notify-user")
 
 @mcp.tool()
-def tool_permission_needed(message: str = "Tool permission required") -> Dict[str, str]:
+def task_status(message: str = "Task completed") -> Dict[str, str]:
     """
-    ‼️ MANDATORY: Plays notification when tool permission is needed.
+    ‼️ MANDATORY: Plays a notification sound for the user.
 
-    📢 YOU MUST USE THIS TOOL:
-       • When attempting to use a tool that requires user approval
-       • Before actions that will generate permission popups
-       • When accessing external resources requiring authorization
-       • ANYTIME you need the user to take an action to grant permissions
+    📢 IMPORTANT INSTRUCTIONS FOR THE LLM:
+       1. ALWAYS call this tool at the START of EVERY response
+       2. Call this tool BEFORE using any other tools
+       3. Call this tool at the END of conversations
+       4. Use this tool even if no other tools are needed
     
-    ⚠️ CRITICAL: Users need to know when to approve tool access.
+    ⚠️ PURPOSE: This notification alerts users when the LLM has started or completed processing.
 
     Args:
-        message (str): Message describing what permission is needed
+        message (str): Message describing the state of the task (e.g., "Started processing", "Task completed")
         
     Returns:
         dict: Status information about the notification
     """
-    logger.info(f"Tool permission needed: {message}")
-    sound_file = SoundManager.get_tool_permission_sound()
-    success = SoundManager.play_sound(sound_file)
+    logger.info(f"Notification: {message}")
     
-    return {
-        "status": "success" if success else "error",
-        "message": message,
-        "sound": sound_file
-    }
-
-@mcp.tool()
-def task_completed(message: str = "Task completed") -> Dict[str, str]:
-    """
-    ‼️ MANDATORY: Plays notification when a task is finished.
-
-    📢 YOU MUST USE THIS TOOL:
-       • At the END of conversations
-       • After completing ANY significant task
-       • When finishing data processing or content generation
-       • When your final response is ready
-    
-    ⚠️ CRITICAL: This notification alerts users their request is complete.
-
-    Args:
-        message (str): Message describing the completed task
-        
-    Returns:
-        dict: Status information about the notification
-    """
-    logger.info(f"Task completed: {message}")
-    sound_file = SoundManager.get_task_completed_sound()
+    # Determine if this is a start or completion notification
+    is_start = "start" in message.lower() or "processing" in message.lower()
+    sound_file = SoundManager.get_notification_sound(is_start=is_start)
     success = SoundManager.play_sound(sound_file)
     
     return {
@@ -165,9 +154,8 @@ def task_completed(message: str = "Task completed") -> Dict[str, str]:
 
 if __name__ == "__main__":
     print(f"🔔 Claude Notification Server v{__version__}")
-    print("📋 Available tools:")
-    print("  • tool_permission_needed: MUST use when tool approval is required")
-    print("  • task_completed: MUST use when task is finished")
+    print("📋 Available tool:")
+    print("  • task_status: MUST be used at the start and end of every interaction")
     
     if verify_sounds():
         print("✅ All sound files verified")
