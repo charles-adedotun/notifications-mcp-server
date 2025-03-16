@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import tempfile
+import subprocess
 
 # Add the parent directory to the path to import the notification_server module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

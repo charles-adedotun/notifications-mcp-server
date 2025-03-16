@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from setuptools import setup
 
 # Read version from the package
 with open('notification_server.py', 'r') as f:

@@ -3,7 +3,7 @@
 import os
 import subprocess
 import logging
-from typing import Dict, Optional
+from typing import Dict
 from fastmcp import FastMCP
 
 # Set up logging
@@ -82,12 +82,12 @@ class SoundManager:
             
         try:
             logger.info(f"Playing sound: {sound_file}")
-            result = subprocess.run(
+            subprocess.run(
                 ["afplay", sound_file],
                 check=True,
                 capture_output=True
             )
-            logger.info(f"Sound played successfully")
+            logger.info("Sound played successfully")
             return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Error playing sound: {e}")
