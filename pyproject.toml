@@ -1,0 +1,19 @@
+[project]
+name = "notifications-mcp-server"
+version = "0.1.0"
+description = "MCP server for Claude Desktop sound notifications on macOS"
+authors = [
+    {name = "Charles Adedotun", email = "charles.adedotun8@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "fastmcp>=0.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
