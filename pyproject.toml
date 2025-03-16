@@ -9,7 +9,7 @@ repository = "https://github.com/charles-adedotun/notifications-mcp-server"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "fastmcp>=0.7.0",
+    "fastmcp>=0.4.1",
 ]
 
 [build-system]

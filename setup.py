@@ -28,7 +28,7 @@ setup(
         ],
     },
     install_requires=[
-        "fastmcp>=0.7.0",
+        "fastmcp>=0.4.1",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
