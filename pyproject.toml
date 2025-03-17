@@ -1,7 +1,7 @@
 [project]
 name = "notifications-mcp-server"
-version = "1.0.0"
-description = "MCP server for Claude Desktop sound notifications on macOS"
+version = "1.1.0"
+description = "MCP server for Claude Desktop sound and visual notifications on macOS"
 authors = [
     {name = "Charles Adedotun", email = "charles.adedotun8@gmail.com"}
 ]
@@ -10,6 +10,20 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "fastmcp>=0.4.1",
+]
+
+[project.optional-dependencies]
+visual = [
+    "pyobjc-core>=9.0",
+    "pyobjc-framework-Cocoa>=9.0",
+]
+pync = [
+    "pync>=2.0.3",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.0.260",
 ]
 
 [build-system]
