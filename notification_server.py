@@ -3,8 +3,9 @@
 import os
 import subprocess
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 from fastmcp import FastMCP
+import importlib.util
 
 # Set up logging
 logging.basicConfig(
@@ -180,6 +181,7 @@ class NotificationManager:
                 logger.info(f"Sent notification using PyObjC: {title} - {message}")
             else:
                 # Send notification using pync as fallback
+                import pync
                 if icon_path:
                     pync.notify(message, title=title, contentImage=icon_path, appIcon=icon_path)
                 else:
@@ -200,11 +202,10 @@ class NotificationManager:
             True if permission is granted, False otherwise
         """
         try:
-            from Foundation import UNUserNotificationCenter
             import objc
             
-            UNUserNotificationCenter = objc.lookUpClass('UNUserNotificationCenter')
-            center = UNUserNotificationCenter.currentNotificationCenter()
+            un_center = objc.lookUpClass('UNUserNotificationCenter')
+            center = un_center.currentNotificationCenter()
             
             # Create a semaphore to wait for the async callback
             from threading import Semaphore
@@ -238,11 +239,11 @@ class NotificationManager:
             return True
             
         try:
-            from Foundation import UNUserNotificationCenter, UNAuthorizationOptions
             import objc
             
-            UNUserNotificationCenter = objc.lookUpClass('UNUserNotificationCenter')
-            center = UNUserNotificationCenter.currentNotificationCenter()
+            un_center = objc.lookUpClass('UNUserNotificationCenter')
+            center = un_center.currentNotificationCenter()
+            un_auth_options = objc.lookUpClass('UNAuthorizationOptions')
             
             # Create a semaphore to wait for the async callback
             from threading import Semaphore
@@ -255,7 +256,7 @@ class NotificationManager:
                 semaphore.release()
             
             # Request alert, sound, and badge permissions
-            options = UNAuthorizationOptions.Alert | UNAuthorizationOptions.Sound | UNAuthorizationOptions.Badge
+            options = un_auth_options.Alert | un_auth_options.Sound | un_auth_options.Badge
             center.requestAuthorizationWithOptions_completionHandler_(options, completion_handler)
             semaphore.acquire()
             
@@ -293,17 +294,17 @@ def verify_notification_components():
     success = True
     
     # Check for PyObjC or pync
-    try:
-        from Foundation import NSUserNotification
+    pyobjc_available = importlib.util.find_spec("Foundation") is not None
+    pync_available = importlib.util.find_spec("pync") is not None
+    
+    if pyobjc_available:
         logger.info("✅ PyObjC is available for visual notifications")
-    except ImportError:
-        try:
-            import pync
-            logger.info("✅ pync is available for visual notifications")
-        except ImportError:
-            logger.warning("⚠️ Neither PyObjC nor pync are available. Visual notifications will be disabled.")
-            logger.warning("To enable visual notifications, install one of them: pip install pyobjc or pip install pync")
-            success = False
+    elif pync_available:
+        logger.info("✅ pync is available for visual notifications")
+    else:
+        logger.warning("⚠️ Neither PyObjC nor pync are available. Visual notifications will be disabled.")
+        logger.warning("To enable visual notifications, install one of them: pip install pyobjc or pip install pync")
+        success = False
             
     # Check notification icon
     icon_path = NotificationManager.get_notification_icon()
