@@ -3,6 +3,8 @@
 import os
 import subprocess
 import logging
+import time
+import json
 from typing import Dict, Optional
 from fastmcp import FastMCP
 import importlib.util
@@ -15,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger("claude-notifications")
 
 # Version
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 class SoundManager:
     """
@@ -104,7 +106,7 @@ class SoundManager:
 
 class NotificationManager:
     """
-    Manages macOS visual notifications using PyObjC.
+    Manages macOS visual notifications using PyObjC, pync, AppleScript, or terminal-notifier.
     """
     
     # Environment variable names for enabling/disabling visual notifications
@@ -137,9 +139,147 @@ class NotificationManager:
         return None
     
     @staticmethod
+    def send_notification_applescript(title: str, message: str) -> bool:
+        """
+        Send a notification using AppleScript as a fallback method.
+        Uses an enhanced script for better reliability in MCP context.
+        
+        Args:
+            title: The notification title
+            message: The notification message
+            
+        Returns:
+            True if notification was sent successfully, False otherwise
+        """
+        try:
+            # Create an enhanced AppleScript that works better in MCP context
+            script = f'''
+            tell application "System Events"
+                # Capture current frontmost app
+                set frontApp to name of first application process whose frontmost is true
+                
+                # Ensure notification is shown no matter what application is focused
+                display notification "{message}" with title "{title}"
+                
+                # Give the notification time to display
+                delay 1
+            end tell
+            '''
+            
+            # Run the AppleScript with increased timeout
+            logger.info("Attempting to send notification using Enhanced AppleScript")
+            process = subprocess.run(
+                ["osascript", "-e", script],
+                check=True,
+                capture_output=True,
+                timeout=5  # Add timeout to prevent hanging
+            )
+            
+            logger.info(f"Sent notification using Enhanced AppleScript: {title} - {message}")
+            logger.debug(f"AppleScript stdout: {process.stdout.decode() if process.stdout else 'None'}")
+            
+            # Add a small delay after sending to ensure notification displays before control returns
+            time.sleep(0.5)
+            
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error running Enhanced AppleScript notification: {e}")
+            logger.error(f"stderr: {e.stderr.decode() if e.stderr else 'None'}")
+            return False
+        except subprocess.TimeoutExpired:
+            logger.error("AppleScript notification timed out")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error with Enhanced AppleScript notification: {e}")
+            return False
+    
+    @staticmethod
+    def send_notification_terminal_notifier(title: str, message: str, sound: Optional[str] = None, icon_path: Optional[str] = None) -> bool:
+        """
+        Send a notification using terminal-notifier with enhanced reliability for MCP context.
+        
+        Args:
+            title: The notification title
+            message: The notification message
+            sound: Optional sound name (default: None to avoid duplicate sounds)
+            icon_path: Optional path to icon file
+            
+        Returns:
+            True if notification was sent successfully, False otherwise
+        """
+        try:
+            # Check if terminal-notifier is installed
+            which_result = subprocess.run(
+                ["which", "terminal-notifier"],
+                capture_output=True,
+                text=True
+            )
+            
+            if which_result.returncode != 0:
+                logger.warning("terminal-notifier not found, install it with: brew install terminal-notifier")
+                return False
+            
+            # Use provided icon or Claude icon or default system icon
+            icon = None
+            if icon_path and os.path.exists(icon_path):
+                icon = icon_path
+            else:
+                # Look for Claude icon
+                claude_icon = "/Applications/Claude.app/Contents/Resources/AppIcon.icns"
+                if os.path.exists(claude_icon):
+                    icon = claude_icon
+                else:
+                    # Use system alert icon as fallback
+                    system_icon = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/AlertNoteIcon.icns"
+                    if os.path.exists(system_icon):
+                        icon = system_icon
+            
+            # Build command with additional options for MCP context reliability
+            cmd = [
+                "terminal-notifier", 
+                "-title", title, 
+                "-message", message,
+                "-activate", "com.anthropic.claude",  # Try to activate Claude when clicking notification
+                "-sender", "com.apple.Terminal"  # Use Terminal as the sender for better visibility
+            ]
+            
+            # Add icon if available
+            if icon:
+                cmd.extend(["-contentImage", icon])
+                cmd.extend(["-appIcon", icon])
+            
+            # Add sound if specified
+            if sound:
+                cmd.extend(["-sound", sound])
+            
+            # Add additional options to improve visibility
+            cmd.extend(["-timeout", "10"])  # 10 second timeout
+            
+            # Send notification with increased timeout
+            logger.info(f"Attempting to send notification using enhanced terminal-notifier with cmd: {cmd}")
+            process = subprocess.run(cmd, check=True, capture_output=True, timeout=5)
+            
+            logger.info(f"Sent notification using enhanced terminal-notifier: {title} - {message}")
+            logger.debug(f"terminal-notifier stdout: {process.stdout.decode() if process.stdout else 'None'}")
+            
+            # Add small delay after notification to ensure it's processed
+            time.sleep(0.5)
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error with enhanced terminal-notifier: {e}")
+            logger.error(f"stderr: {e.stderr.decode() if e.stderr else 'None'}")
+            return False
+        except subprocess.TimeoutExpired:
+            logger.error("terminal-notifier command timed out")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error with enhanced terminal-notifier: {e}")
+            return False
+    
+    @staticmethod
     def send_notification(title: str, message: str, icon_path: Optional[str] = None) -> bool:
         """
-        Send a macOS notification using PyObjC.
+        Send a macOS notification using multiple methods with fallbacks.
         
         Args:
             title: The notification title
@@ -147,51 +287,85 @@ class NotificationManager:
             icon_path: Path to the icon file (optional)
             
         Returns:
-            True if notification was sent successfully, False otherwise
+            True if notification was sent successfully with any method, False otherwise
         """
+        logger.info(f"Attempting to send notification: {title} - {message}")
+        
+        # Try multiple notification methods in sequence
+        methods_tried = 0
+        success = False
+        
+        # For MCP server context, first try AppleScript and terminal-notifier as they are more reliable
+        # 1. First try AppleScript as it's the most reliable in MCP context
         try:
-            # Try importing Foundation and required classes
+            success = NotificationManager.send_notification_applescript(title, message)
+            methods_tried += 1
+            logger.info(f"AppleScript notification attempted: {success}")
+        except Exception as e:
+            logger.warning(f"Error in AppleScript notification attempt: {e}")
+        
+        # 2. Try terminal-notifier next
+        if not success:
             try:
-                from Foundation import NSUserNotification, NSUserNotificationCenter, NSImage
-                use_pyobjc = True
-            except ImportError:
-                logger.info("PyObjC not available, trying pync as fallback")
-                use_pyobjc = False
+                success = NotificationManager.send_notification_terminal_notifier(
+                    title, message, sound=None  # Don't specify sound to avoid duplicate sounds
+                )
+                methods_tried += 1
+                logger.info(f"Terminal-notifier notification attempted: {success}")
+            except Exception as e:
+                logger.warning(f"Error in terminal-notifier attempt: {e}")
+        
+        # 3. Then try with PyObjC
+        if not success:
+            try:
+                try:
+                    from Foundation import NSUserNotification, NSUserNotificationCenter, NSImage
+                    
+                    notification = NSUserNotification.alloc().init()
+                    notification.setTitle_(title)
+                    notification.setInformativeText_(message)
+                    
+                    # Set the icon if provided
+                    if icon_path:
+                        image = NSImage.alloc().initWithContentsOfFile_(icon_path)
+                        if image:
+                            notification.setContentImage_(image)
+                    
+                    center = NSUserNotificationCenter.defaultUserNotificationCenter()
+                    center.deliverNotification_(notification)
+                    logger.info("Sent notification using PyObjC")
+                    success = True
+                except ImportError:
+                    logger.info("PyObjC not available, will try other methods")
+                except Exception as e:
+                    logger.warning(f"PyObjC notification failed: {e}")
+                
+                methods_tried += 1
+            except Exception as e:
+                logger.warning(f"Error in PyObjC notification attempt: {e}")
+        
+        # 4. Try with pync as last resort
+        if not success:
+            try:
                 try:
                     import pync
+                    if icon_path:
+                        pync.notify(message, title=title, contentImage=icon_path, appIcon=icon_path)
+                    else:
+                        pync.notify(message, title=title)
+                    logger.info("Sent notification using pync")
+                    success = True
                 except ImportError:
-                    logger.error("Neither PyObjC nor pync are available. Please install one of them: "
-                                 "pip install pyobjc or pip install pync")
-                    return False
-            
-            if use_pyobjc:
-                # Send notification using PyObjC
-                notification = NSUserNotification.alloc().init()
-                notification.setTitle_(title)
-                notification.setInformativeText_(message)
+                    logger.info("pync not available, will try other methods")
+                except Exception as e:
+                    logger.warning(f"pync notification failed: {e}")
                 
-                # Set the icon if provided
-                if icon_path:
-                    image = NSImage.alloc().initWithContentsOfFile_(icon_path)
-                    if image:
-                        notification.setContentImage_(image)
-                
-                center = NSUserNotificationCenter.defaultUserNotificationCenter()
-                center.deliverNotification_(notification)
-                logger.info(f"Sent notification using PyObjC: {title} - {message}")
-            else:
-                # Send notification using pync as fallback
-                import pync
-                if icon_path:
-                    pync.notify(message, title=title, contentImage=icon_path, appIcon=icon_path)
-                else:
-                    pync.notify(message, title=title)
-                logger.info(f"Sent notification using pync: {title} - {message}")
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error sending notification: {e}")
-            return False
+                methods_tried += 1
+            except Exception as e:
+                logger.warning(f"Error in pync notification attempt: {e}")
+        
+        logger.info(f"Notification result: success={success}, methods_tried={methods_tried}")
+        return success
     
     @classmethod
     def send_test_notification(cls) -> bool:
@@ -203,145 +377,35 @@ class NotificationManager:
             True if notification was sent successfully, False otherwise
         """
         try:
-            # Try importing Foundation and required classes
-            try:
-                from Foundation import NSUserNotification, NSUserNotificationCenter
-                use_pyobjc = True
-            except ImportError:
-                logger.info("PyObjC not available, trying pync as fallback")
-                use_pyobjc = False
-                try:
-                    import pync
-                except ImportError:
-                    logger.error("Neither PyObjC nor pync are available. Please install one of them: "
-                                 "pip install pyobjc or pip install pync")
-                    return False
+            title = "Claude Notification Server"
+            message = "Initializing notification permissions"
             
-            if use_pyobjc:
-                # Send a silent test notification using PyObjC
-                notification = NSUserNotification.alloc().init()
-                notification.setTitle_("Claude Notification Server")
-                notification.setInformativeText_("Initializing notification permissions")
-                # Don't play a sound for this test notification
-                notification.setSoundName_(None)
-                
-                center = NSUserNotificationCenter.defaultUserNotificationCenter()
-                center.deliverNotification_(notification)
-                
-                # Also explicitly request permission via UNUserNotificationCenter if available
+            # Try multiple methods for the test notification
+            success = cls.send_notification(title, message)
+            
+            # If all methods failed, try the direct method as a last resort
+            if not success:
                 try:
-                    import objc
-                    un_center = objc.lookUpClass('UNUserNotificationCenter')
-                    if un_center:
-                        center = un_center.currentNotificationCenter()
-                        un_auth_options = objc.lookUpClass('UNAuthorizationOptions')
-                        options = un_auth_options.Alert | un_auth_options.Sound | un_auth_options.Badge
-                        
-                        # Create a semaphore to wait for the async callback
-                        from threading import Semaphore
-                        semaphore = Semaphore(0)
-                        
-                        result = {}
-                        def completion_handler(granted, error):
-                            result['granted'] = granted
-                            result['error'] = error
-                            semaphore.release()
-                        
-                        center.requestAuthorizationWithOptions_completionHandler_(options, completion_handler)
-                        semaphore.acquire(timeout=5)  # Add timeout to prevent hanging
-                        
-                        logger.info(f"Authorization request result: {result.get('granted', 'Unknown')}")
+                    from Foundation import NSUserNotification, NSUserNotificationCenter
+                    notification = NSUserNotification.alloc().init()
+                    notification.setTitle_(title)
+                    notification.setInformativeText_(message)
+                    center = NSUserNotificationCenter.defaultUserNotificationCenter()
+                    center.deliverNotification_(notification)
+                    logger.info("Sent test notification using direct PyObjC method")
+                    success = True
                 except Exception as e:
-                    logger.warning(f"Could not request explicit permission via UNUserNotificationCenter: {e}")
-                
-                logger.info("Sent test notification using PyObjC")
-            else:
-                # Send a silent test notification using pync
-                pync.notify("Initializing notification permissions", 
-                            title="Claude Notification Server",
-                            sound="")
-                logger.info("Sent test notification using pync")
+                    logger.warning(f"Direct PyObjC test notification failed: {e}")
             
-            return True
+            # Always try AppleScript as well to make sure permissions are requested
+            try:
+                cls.send_notification_applescript(title, message)
+            except Exception as e:
+                logger.warning(f"AppleScript test notification failed: {e}")
+            
+            return success
         except Exception as e:
             logger.error(f"Error sending test notification: {e}")
-            return False
-    
-    @classmethod
-    def check_notification_permission(cls) -> bool:
-        """
-        Check if the application has permission to send notifications.
-        
-        Returns:
-            True if permission is granted, False otherwise
-        """
-        try:
-            import objc
-            
-            un_center = objc.lookUpClass('UNUserNotificationCenter')
-            center = un_center.currentNotificationCenter()
-            
-            # Create a semaphore to wait for the async callback
-            from threading import Semaphore
-            semaphore = Semaphore(0)
-            
-            result = {}
-            def completion_handler(settings):
-                result['authorized'] = settings.authorizationStatus() == 2  # 2 = Authorized
-                semaphore.release()
-            
-            center.getNotificationSettingsWithCompletionHandler_(completion_handler)
-            semaphore.acquire()
-            
-            return result['authorized']
-        except Exception as e:
-            logger.error(f"Error checking notification permission: {e}")
-            # If we can't check permissions, assume we can send notifications
-            return True
-    
-    @classmethod
-    def request_notification_permission(cls) -> bool:
-        """
-        Request permission to send notifications if not already granted.
-        
-        Returns:
-            True if permission is granted, False otherwise
-        """
-        # First check if we already have permission
-        if cls.check_notification_permission():
-            logger.info("Notification permission already granted")
-            return True
-            
-        try:
-            import objc
-            
-            un_center = objc.lookUpClass('UNUserNotificationCenter')
-            center = un_center.currentNotificationCenter()
-            un_auth_options = objc.lookUpClass('UNAuthorizationOptions')
-            
-            # Create a semaphore to wait for the async callback
-            from threading import Semaphore
-            semaphore = Semaphore(0)
-            
-            result = {}
-            def completion_handler(granted, error):
-                result['granted'] = granted
-                result['error'] = error
-                semaphore.release()
-            
-            # Request alert, sound, and badge permissions
-            options = un_auth_options.Alert | un_auth_options.Sound | un_auth_options.Badge
-            center.requestAuthorizationWithOptions_completionHandler_(options, completion_handler)
-            semaphore.acquire()
-            
-            if result.get('granted', False):
-                logger.info("Notification permission granted")
-                return True
-            else:
-                logger.warning(f"Notification permission denied: {result.get('error')}")
-                return False
-        except Exception as e:
-            logger.error(f"Error requesting notification permission: {e}")
             return False
 
 
@@ -376,36 +440,55 @@ def verify_notification_components():
     elif pync_available:
         logger.info("✅ pync is available for visual notifications")
     else:
-        logger.warning("⚠️ Neither PyObjC nor pync are available. Visual notifications will be disabled.")
-        logger.warning("To enable visual notifications, install one of them: pip install pyobjc or pip install pync")
-        success = False
-            
+        logger.info("ℹ️ Neither PyObjC nor pync are available. Will try AppleScript or terminal-notifier instead.")
+        # We don't mark success as False here since we have fallback options
+    
+    # Check for terminal-notifier as a fallback
+    try:
+        terminal_notifier_available = subprocess.run(
+            ["which", "terminal-notifier"],
+            capture_output=True
+        ).returncode == 0
+        
+        if terminal_notifier_available:
+            logger.info("✅ terminal-notifier is available as a fallback")
+    except Exception:
+        terminal_notifier_available = False
+    
     # Check notification icon
     icon_path = NotificationManager.get_notification_icon()
     if icon_path:
         logger.info(f"✅ Notification icon found at {icon_path}")
     else:
         logger.info("ℹ️ No notification icon found. Notifications will be sent without an icon.")
-        
-    # Force permission request for notifications if enabled
+    
+    # Test notifications directly to ensure permissions
     if NotificationManager.are_visual_notifications_enabled():
-        if success:  # Only check permissions if we have the required components
-            try:
-                # Always send a test notification to trigger permission prompt
-                logger.info("Sending test notification to register with Notification Center...")
-                test_result = NotificationManager.send_test_notification()
-                
-                if test_result:
-                    logger.info("✅ Test notification sent successfully - permissions should be granted")
+        try:
+            # Always send a test notification to trigger permission prompt
+            logger.info("Sending test notification to register with Notification Center...")
+            test_result = NotificationManager.send_test_notification()
+            
+            if test_result:
+                logger.info("✅ Test notification sent successfully - permissions should be granted")
+            else:
+                logger.warning("⚠️ Unable to send test notification - trying direct AppleScript method")
+                apple_result = NotificationManager.send_notification_applescript(
+                    "Claude Notification Server", 
+                    "Testing notification permissions"
+                )
+                if apple_result:
+                    logger.info("✅ AppleScript notification succeeded")
                 else:
-                    logger.warning("⚠️ Unable to send test notification - permissions may not be granted")
+                    logger.warning("⚠️ All notification methods failed")
                     logger.info("You can manually enable permissions in System Preferences > Notifications")
-                    logger.info("Look for 'Python' or 'Terminal' in the application list")
-            except Exception as e:
-                logger.warning(f"⚠️ Error checking notification permissions: {e}")
+                    success = False
+        except Exception as e:
+            logger.warning(f"⚠️ Error checking notification permissions: {e}")
+            success = False
     else:
         logger.info("ℹ️ Visual notifications are disabled by environment configuration")
-        
+    
     return success
 
 
@@ -435,31 +518,108 @@ def task_status(message: str = "Task completed") -> Dict[str, str]:
     
     # Determine if this is a start or completion notification
     is_start = "start" in message.lower() or "processing" in message.lower()
+    notification_type = "start" if is_start else "complete"
+    
+    # Set appropriate titles based on notification type
+    if is_start:
+        title = "Claude is Processing"
+    else:
+        title = "Claude Response Ready"
+    
+    # Path to helper script (look in project directory first, then home directory)
+    helper_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notify-claude.sh")
+    
+    # If helper script exists, use it as the primary notification method
+    if os.path.exists(helper_script):
+        try:
+            logger.info(f"Using helper script: {helper_script}")
+            
+            # Make the script executable if it isn't already
+            if not os.access(helper_script, os.X_OK):
+                os.chmod(helper_script, 0o755)
+            
+            # Run the helper script with title, message, and notification type
+            process = subprocess.run(
+                [helper_script, title, message, notification_type],
+                capture_output=True,
+                text=True,
+                check=False  # Don't raise exception on non-zero exit
+            )
+            
+            # Check if the script ran successfully
+            if process.returncode == 0:
+                logger.info("Helper script ran successfully")
+                
+                # Try to parse the JSON response from the script
+                try:
+                    result = json.loads(process.stdout.strip())
+                    logger.info(f"Script result: {result}")
+                    return result
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse script output: {process.stdout}")
+            else:
+                logger.warning(f"Helper script failed with code {process.returncode}")
+                logger.warning(f"stderr: {process.stderr}")
+                
+        except Exception as e:
+            logger.error(f"Error running helper script: {e}")
+            # Fall through to original methods if helper script fails
+    else:
+        logger.info(f"Helper script not found at {helper_script}, using built-in methods")
+    
+    # If we reach here, the helper script either doesn't exist or failed
+    # Fall back to the original implementation
     
     # Send sound notification
     sound_file = SoundManager.get_notification_sound(is_start=is_start)
     sound_success = SoundManager.play_sound(sound_file)
     
-    # Send visual notification if enabled
+    # Visual notification
     visual_success = False
-    if NotificationManager.are_visual_notifications_enabled():
-        # Determine notification title and message
-        if is_start:
-            title = "Claude is Processing"
-            notification_message = "Claude has started processing your request"
-        else:
-            title = "Claude Response Ready"
-            notification_message = "Claude has completed your request"
-        
-        # Get icon path
-        icon_path = NotificationManager.get_notification_icon()
-        
-        # Send notification
-        visual_success = NotificationManager.send_notification(
-            title=title,
-            message=notification_message,
-            icon_path=icon_path
-        )
+    visual_enabled = NotificationManager.are_visual_notifications_enabled()
+    
+    if visual_enabled:
+        try:
+            # Get icon path
+            icon_path = NotificationManager.get_notification_icon()
+            
+            # Try terminal-notifier directly first for MCP context
+            try:
+                visual_success = NotificationManager.send_notification_terminal_notifier(
+                    title=title,
+                    message=message,
+                    sound=None,  # Don't duplicate sound
+                    icon_path=icon_path
+                )
+                logger.info(f"Terminal-notifier result: {visual_success}")
+            except Exception as e:
+                logger.error(f"Terminal-notifier failed: {e}")
+            
+            # If terminal-notifier failed, try AppleScript directly
+            if not visual_success:
+                try:
+                    visual_success = NotificationManager.send_notification_applescript(
+                        title=title,
+                        message=message
+                    )
+                    logger.info(f"AppleScript result: {visual_success}")
+                except Exception as e:
+                    logger.error(f"AppleScript failed: {e}")
+            
+            # If both direct methods failed, try the full notification stack
+            if not visual_success:
+                try:
+                    visual_success = NotificationManager.send_notification(
+                        title=title,
+                        message=message,
+                        icon_path=icon_path
+                    )
+                    logger.info(f"Full notification stack result: {visual_success}")
+                except Exception as e:
+                    logger.error(f"Full notification stack failed: {e}")
+            
+        except Exception as e:
+            logger.error(f"Error sending visual notification: {e}")
     
     return {
         "status": "success" if (sound_success or visual_success) else "error",
@@ -478,7 +638,6 @@ def main():
     # Verify components - sound first for backward compatibility
     sound_success = verify_sounds()
     
-    # Explicitly add a delay before visual checks to ensure sound setup is complete
     if sound_success:
         print("✅ All sound files verified")
     else:
@@ -493,7 +652,7 @@ def main():
             print("✅ Visual notification components verified")
         else:
             print("⚠️ Visual notifications may not work correctly. See warnings above.")
-            print("💡 Try running: python -c \"import objc; from Foundation import NSUserNotification, NSUserNotificationCenter; notification = NSUserNotification.alloc().init(); notification.setTitle_('Test'); notification.setInformativeText_('Test'); NSUserNotificationCenter.defaultUserNotificationCenter().deliverNotification_(notification)\"")
+            print("💡 Try running: python3 test_notification.py for more detailed testing")
     else:
         print("ℹ️ Visual notifications are disabled")
     
@@ -508,4 +667,5 @@ def main():
     return 0
 
 if __name__ == "__main__":
+    # Then run the main server
     exit(main())
