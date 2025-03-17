@@ -194,6 +194,80 @@ class NotificationManager:
             return False
     
     @classmethod
+    def send_test_notification(cls) -> bool:
+        """
+        Send a test notification to ensure the application is registered with Notification Center.
+        This will trigger the permission prompt if needed.
+        
+        Returns:
+            True if notification was sent successfully, False otherwise
+        """
+        try:
+            # Try importing Foundation and required classes
+            try:
+                from Foundation import NSUserNotification, NSUserNotificationCenter
+                use_pyobjc = True
+            except ImportError:
+                logger.info("PyObjC not available, trying pync as fallback")
+                use_pyobjc = False
+                try:
+                    import pync
+                except ImportError:
+                    logger.error("Neither PyObjC nor pync are available. Please install one of them: "
+                                 "pip install pyobjc or pip install pync")
+                    return False
+            
+            if use_pyobjc:
+                # Send a silent test notification using PyObjC
+                notification = NSUserNotification.alloc().init()
+                notification.setTitle_("Claude Notification Server")
+                notification.setInformativeText_("Initializing notification permissions")
+                # Don't play a sound for this test notification
+                notification.setSoundName_(None)
+                
+                center = NSUserNotificationCenter.defaultUserNotificationCenter()
+                center.deliverNotification_(notification)
+                
+                # Also explicitly request permission via UNUserNotificationCenter if available
+                try:
+                    import objc
+                    un_center = objc.lookUpClass('UNUserNotificationCenter')
+                    if un_center:
+                        center = un_center.currentNotificationCenter()
+                        un_auth_options = objc.lookUpClass('UNAuthorizationOptions')
+                        options = un_auth_options.Alert | un_auth_options.Sound | un_auth_options.Badge
+                        
+                        # Create a semaphore to wait for the async callback
+                        from threading import Semaphore
+                        semaphore = Semaphore(0)
+                        
+                        result = {}
+                        def completion_handler(granted, error):
+                            result['granted'] = granted
+                            result['error'] = error
+                            semaphore.release()
+                        
+                        center.requestAuthorizationWithOptions_completionHandler_(options, completion_handler)
+                        semaphore.acquire(timeout=5)  # Add timeout to prevent hanging
+                        
+                        logger.info(f"Authorization request result: {result.get('granted', 'Unknown')}")
+                except Exception as e:
+                    logger.warning(f"Could not request explicit permission via UNUserNotificationCenter: {e}")
+                
+                logger.info("Sent test notification using PyObjC")
+            else:
+                # Send a silent test notification using pync
+                pync.notify("Initializing notification permissions", 
+                            title="Claude Notification Server",
+                            sound="")
+                logger.info("Sent test notification using pync")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error sending test notification: {e}")
+            return False
+    
+    @classmethod
     def check_notification_permission(cls) -> bool:
         """
         Check if the application has permission to send notifications.
@@ -290,7 +364,7 @@ def verify_sounds():
 
 
 def verify_notification_components():
-    """Verify that the required components for visual notifications are available."""
+    """Verify that the required components for visual notifications are available and properly registered."""
     success = True
     
     # Check for PyObjC or pync
@@ -313,20 +387,20 @@ def verify_notification_components():
     else:
         logger.info("ℹ️ No notification icon found. Notifications will be sent without an icon.")
         
-    # Check notification permissions
+    # Force permission request for notifications if enabled
     if NotificationManager.are_visual_notifications_enabled():
         if success:  # Only check permissions if we have the required components
             try:
-                if NotificationManager.check_notification_permission():
-                    logger.info("✅ Notification permissions are granted")
+                # Always send a test notification to trigger permission prompt
+                logger.info("Sending test notification to register with Notification Center...")
+                test_result = NotificationManager.send_test_notification()
+                
+                if test_result:
+                    logger.info("✅ Test notification sent successfully - permissions should be granted")
                 else:
-                    logger.warning("⚠️ Notification permissions are not granted. "
-                                   "Attempting to request permissions...")
-                    if NotificationManager.request_notification_permission():
-                        logger.info("✅ Notification permissions successfully granted")
-                    else:
-                        logger.warning("⚠️ Notification permissions denied. Visual notifications may not work.")
-                        logger.warning("You can enable permissions in System Preferences > Notifications")
+                    logger.warning("⚠️ Unable to send test notification - permissions may not be granted")
+                    logger.info("You can manually enable permissions in System Preferences > Notifications")
+                    logger.info("Look for 'Python' or 'Terminal' in the application list")
             except Exception as e:
                 logger.warning(f"⚠️ Error checking notification permissions: {e}")
     else:
@@ -401,20 +475,25 @@ def main():
     print("📋 Available tool:")
     print("  • task_status: MUST be used at the start and end of every interaction")
     
-    # Verify components
+    # Verify components - sound first for backward compatibility
     sound_success = verify_sounds()
-    visual_success = verify_notification_components()
     
+    # Explicitly add a delay before visual checks to ensure sound setup is complete
     if sound_success:
         print("✅ All sound files verified")
     else:
         print("⚠️ Some sound files could not be found. Check configurations.")
-        
+    
+    # Now handle visual notifications with explicit permission check
     if NotificationManager.are_visual_notifications_enabled():
+        print("🔔 Visual notifications are enabled, configuring...")
+        visual_success = verify_notification_components()
+        
         if visual_success:
             print("✅ Visual notification components verified")
         else:
             print("⚠️ Visual notifications may not work correctly. See warnings above.")
+            print("💡 Try running: python -c \"import objc; from Foundation import NSUserNotification, NSUserNotificationCenter; notification = NSUserNotification.alloc().init(); notification.setTitle_('Test'); notification.setInformativeText_('Test'); NSUserNotificationCenter.defaultUserNotificationCenter().deliverNotification_(notification)\"")
     else:
         print("ℹ️ Visual notifications are disabled")
     
