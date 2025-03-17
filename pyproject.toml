@@ -1,6 +1,6 @@
 [project]
 name = "notifications-mcp-server"
-version = "1.1.0"
+version = "1.2.1"
 description = "MCP server for Claude Desktop sound and visual notifications on macOS"
 authors = [
     {name = "Charles Adedotun", email = "charles.adedotun8@gmail.com"}
