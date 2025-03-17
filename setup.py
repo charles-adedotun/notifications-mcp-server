@@ -15,7 +15,7 @@ with open('README.md', 'r') as f:
 setup(
     name="notifications-mcp-server",
     version=version,
-    description="MCP server for Claude Desktop sound notifications on macOS",
+    description="MCP server for Claude Desktop sound and visual notifications on macOS",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Charles Adedotun",
@@ -30,6 +30,20 @@ setup(
     install_requires=[
         "fastmcp>=0.4.1",
     ],
+    extras_require={
+        'visual': [
+            'pyobjc-core>=9.0',
+            'pyobjc-framework-Cocoa>=9.0',
+        ],
+        'pync': [
+            'pync>=2.0.3',
+        ],
+        'dev': [
+            'pytest>=7.0.0',
+            'pytest-cov>=4.0.0',
+            'ruff>=0.0.260',
+        ],
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: MacOS X",

@@ -1,12 +1,14 @@
 # Claude Notification Server
 
-A lightweight MCP server that provides auditory notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
+A lightweight MCP server that provides both auditory and visual notifications for Claude Desktop on macOS. This server lets you know when Claude starts processing your request and when it has completed a task.
 
 ## Features
 
 - 🔔 Different sound notifications at the beginning and end of Claude responses
 - 💻 Compatible with macOS native system sounds (`.aiff` files)
 - 🎵 Easily customizable notification sounds via environment variables
+- 🔔 Visual desktop notifications through macOS Notification Center
+- 🖼️ Custom icons for visual notifications
 - 🚀 Simple setup with minimal dependencies
 
 ## Quick Start
@@ -38,8 +40,14 @@ A lightweight MCP server that provides auditory notifications for Claude Desktop
    # Using uv (recommended)
    uv pip install fastmcp
    
+   # For visual notifications, install one of:
+   uv pip install pyobjc  # Recommended for full native integration
+   # OR
+   uv pip install pync    # Alternative with simpler API
+   
    # Or using standard pip
    pip install fastmcp
+   pip install pyobjc  # or pync
    
    # Or install directly from PyPI
    pip install notifications-mcp-server
@@ -54,29 +62,33 @@ A lightweight MCP server that provides auditory notifications for Claude Desktop
    After installation, open Claude Desktop and check the Developer menu:
    - Go to Help menu → Enable Developer Mode (if not already enabled)
    - Look for the server in the Developer menu → MCP Log File
-   - Or simply try using Claude - you should hear the notification sounds
+   - Or simply try using Claude - you should hear the notification sounds and see desktop notifications
    ```
 
 ## How It Works
 
-Once installed, the server automatically connects with Claude Desktop and offers the `task_status` notification tool. Claude will call this tool at the start and end of each interaction, producing an audible notification.
+Once installed, the server automatically connects with Claude Desktop and offers the `task_status` notification tool. Claude will call this tool at the start and end of each interaction, producing both audible and visual notifications.
 
 ### Architecture
 
 ```
 ┌─────────────────┐     MCP Protocol      ┌─────────────────┐     System Command    ┌─────────────┐
-│                 │ ──────────────────>   │                 │ ──────────────────>   │             │
-│  Claude Desktop │                       │   Notification  │                       │ macOS Sound │
-│   Application   │ <──────────────────   │   MCP Server    │ <──────────────────   │    System   │
-│                 │                       │                 │                       │             │
-└─────────────────┘                       └─────────────────┘                       └─────────────┘
+│                 │ ──────────────────>   │                 │ ──────────────────>   │ macOS Sound │
+│  Claude Desktop │                       │   Notification  │                       │    System   │
+│   Application   │ <──────────────────   │   MCP Server    │ <──────────────────   │             │
+│                 │                       │                 │                       └─────────────┘
+                                          │                 │                       ┌─────────────┐
+                                          │                 │ ──────────────────>   │ macOS       │
+                                          │                 │                       │ Notification │
+                                          │                 │ <──────────────────   │ Center      │
+                                          └─────────────────┘                       └─────────────┘
 ```
 
-The Claude desktop application connects to the notification server using the Model Context Protocol (MCP). When Claude starts or completes processing, it calls the `task_status` tool, which triggers the appropriate sound using macOS's built-in audio system.
+The Claude desktop application connects to the notification server using the Model Context Protocol (MCP). When Claude starts or completes processing, it calls the `task_status` tool, which triggers both sound notifications using macOS's built-in audio system and visual notifications using the macOS Notification Center.
 
 ### The `task_status` Tool
 
-This tool plays a sound notification to alert you when:
+This tool plays a sound notification and displays a desktop notification to alert you when:
 - Claude begins processing your request ("Glass" sound by default)
 - Claude completes a task or finishes processing ("Hero" sound by default)
 
@@ -88,13 +100,15 @@ The tool automatically detects whether it's being called at the start or end of 
 - Call this tool at the END of conversations
 - Use this tool even if no other tools are needed
 
-## Customizing the Notification Sounds
+## Customizing the Notifications
 
-### Default Sounds
+### Sound Notifications
+
+#### Default Sounds
 - Start of task: "Glass.aiff" from macOS system sounds
 - End of task: "Hero.aiff" from macOS system sounds
 
-### Customizing Individual Sounds
+#### Customizing Individual Sounds
 
 **For start notifications:**
 ```bash
@@ -114,15 +128,37 @@ export CLAUDE_NOTIFICATION_SOUND="/System/Library/Sounds/Submarine.aiff"
 fastmcp install notification_server.py
 ```
 
+### Visual Notifications
+
+#### Enabling/Disabling Visual Notifications
+
+Visual notifications are enabled by default. To disable them:
+
+```bash
+export CLAUDE_VISUAL_NOTIFICATIONS="false"
+fastmcp install notification_server.py
+```
+
+#### Customizing Notification Icon
+
+By default, the server attempts to use the Claude application icon. You can specify a custom icon:
+
+```bash
+export CLAUDE_NOTIFICATION_ICON="/path/to/your/custom/icon.png"
+fastmcp install notification_server.py
+```
+
 ### Make it permanent
+
 Add to your shell profile (~/.zshrc, ~/.bashrc, or similar):
 ```bash
 # For different sounds
 echo 'export CLAUDE_START_SOUND="/System/Library/Sounds/Ping.aiff"' >> ~/.zshrc
 echo 'export CLAUDE_COMPLETE_SOUND="/System/Library/Sounds/Purr.aiff"' >> ~/.zshrc
 
-# Or for the same sound
-# echo 'export CLAUDE_NOTIFICATION_SOUND="/System/Library/Sounds/Submarine.aiff"' >> ~/.zshrc
+# For visual notifications
+echo 'export CLAUDE_VISUAL_NOTIFICATIONS="true"' >> ~/.zshrc  # Default is true
+echo 'export CLAUDE_NOTIFICATION_ICON="/path/to/your/icon.png"' >> ~/.zshrc
 
 source ~/.zshrc
 ```
@@ -155,6 +191,21 @@ afplay /System/Library/Sounds/Glass.aiff
 
 **Custom Sounds:** You can also use your own .aiff files by providing the full path.
 
+## Notification Permissions
+
+macOS requires explicit permission from users before applications can send notifications. The server attempts to request permissions automatically when needed.
+
+If notifications aren't appearing:
+
+1. Check System Preferences → Notifications & Focus
+2. Look for "Terminal" or "Python" in the list of applications
+3. Ensure notifications are enabled
+
+You can also manually open notification preferences by running:
+```bash
+open "x-apple.systempreferences:com.apple.preference.notifications"
+```
+
 ## Troubleshooting
 
 ### No Sound Playing
@@ -172,6 +223,24 @@ afplay /System/Library/Sounds/Glass.aiff
 
 4. **Check server logs:**
    - Look for error messages in the terminal where the server is running
+
+### No Visual Notifications
+
+1. **Check notification components:**
+   - Ensure you have installed either `pyobjc` or `pync`:
+     ```bash
+     pip install pyobjc  # OR pip install pync
+     ```
+
+2. **Check notification permissions:**
+   - Open System Preferences → Notifications & Focus
+   - Ensure Terminal or Python has permission to send notifications
+
+3. **Check environment variables:**
+   - Make sure `CLAUDE_VISUAL_NOTIFICATIONS` is not set to "false"
+
+4. **Check server logs:**
+   - Look for error messages related to notifications in the terminal
 
 ### Claude Not Using Notifications
 
@@ -195,9 +264,9 @@ fastmcp uninstall notify-user
 
 ## Development
 
-- **Requirements:** Python 3.8+, fastmcp library
+- **Requirements:** Python 3.8+, fastmcp library, pyobjc or pync (for visual notifications)
 - **Main files:** notification_server.py, pyproject.toml
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 
 ### Running Tests
 
@@ -224,6 +293,6 @@ This project is licensed under the [MIT License](LICENSE) - see the LICENSE file
 
 ## Acknowledgments
 
-- This project was inspired by the need for better auditory feedback when working with Claude
+- This project was inspired by the need for better auditory and visual feedback when working with Claude
 - Built using the [FastMCP](https://github.com/anthropics/mcp) library from Anthropic
 - Special thanks to all contributors and the Claude community
