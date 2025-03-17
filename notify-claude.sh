@@ -21,11 +21,18 @@ fi
 
 # Try terminal-notifier first (most reliable method)
 if command -v terminal-notifier &> /dev/null; then
-    # Use terminal-notifier with user-specific icon
-    CLAUDE_ICON="/Applications/Claude.app/Contents/Resources/AppIcon.icns"
+    # Get the script directory
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     
-    if [[ -f "$CLAUDE_ICON" ]]; then
-        terminal-notifier -title "$TITLE" -message "$MESSAGE" -contentImage "$CLAUDE_ICON" -sender "com.apple.Terminal" -activate "com.anthropic.claude"
+    # Check for local icon first (highest priority)
+    LOCAL_ICON="$SCRIPT_DIR/claude-ai-icon.png"
+    APP_ICON="/Applications/Claude.app/Contents/Resources/AppIcon.icns"
+    
+    # Use available icon in order of priority
+    if [[ -f "$LOCAL_ICON" ]]; then
+        terminal-notifier -title "$TITLE" -message "$MESSAGE" -contentImage "$LOCAL_ICON" -sender "com.apple.Terminal" -activate "com.anthropic.claude"
+    elif [[ -f "$APP_ICON" ]]; then
+        terminal-notifier -title "$TITLE" -message "$MESSAGE" -contentImage "$APP_ICON" -sender "com.apple.Terminal" -activate "com.anthropic.claude"
     else
         terminal-notifier -title "$TITLE" -message "$MESSAGE" -sender "com.apple.Terminal" -activate "com.anthropic.claude"
     fi

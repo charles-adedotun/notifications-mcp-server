@@ -113,8 +113,10 @@ class NotificationManager:
     ENV_VISUAL_NOTIFICATIONS = "CLAUDE_VISUAL_NOTIFICATIONS"
     ENV_NOTIFICATION_ICON = "CLAUDE_NOTIFICATION_ICON"
     
-    # Default icon path (Claude icon if available, otherwise None)
-    DEFAULT_ICON_PATH = "/Applications/Claude.app/Contents/Resources/AppIcon.icns"
+    # Default icon paths
+    # Local icon is preferred, then app icon, then None
+    LOCAL_ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "claude-ai-icon.png")
+    APP_ICON_PATH = "/Applications/Claude.app/Contents/Resources/AppIcon.icns"
     
     @classmethod
     def are_visual_notifications_enabled(cls) -> bool:
@@ -125,16 +127,21 @@ class NotificationManager:
     @classmethod
     def get_notification_icon(cls) -> Optional[str]:
         """Get the path to the icon for notifications."""
-        # Check environment variable first
+        # Check environment variable first (highest priority)
         custom_icon = os.environ.get(cls.ENV_NOTIFICATION_ICON)
         if custom_icon and os.path.exists(custom_icon):
             logger.info(f"Using custom notification icon: {custom_icon}")
             return custom_icon
         
-        # Use default Claude icon if available
-        if os.path.exists(cls.DEFAULT_ICON_PATH):
-            logger.info(f"Using default Claude icon: {cls.DEFAULT_ICON_PATH}")
-            return cls.DEFAULT_ICON_PATH
+        # Use local project icon if available (second priority)
+        if os.path.exists(cls.LOCAL_ICON_PATH):
+            logger.info(f"Using bundled Claude icon: {cls.LOCAL_ICON_PATH}")
+            return cls.LOCAL_ICON_PATH
+        
+        # Use default Claude app icon if available (third priority)
+        if os.path.exists(cls.APP_ICON_PATH):
+            logger.info(f"Using default Claude app icon: {cls.APP_ICON_PATH}")
+            return cls.APP_ICON_PATH
             
         return None
     
@@ -308,7 +315,9 @@ class NotificationManager:
         if not success:
             try:
                 success = NotificationManager.send_notification_terminal_notifier(
-                    title, message, sound=None  # Don't specify sound to avoid duplicate sounds
+                    title=title,
+                    message=message,
+                    sound=None  # Don't specify sound to avoid duplicate sounds
                 )
                 methods_tried += 1
                 logger.info(f"Terminal-notifier notification attempted: {success}")
@@ -667,5 +676,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    # Then run the main server
     exit(main())
