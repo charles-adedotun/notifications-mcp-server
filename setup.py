@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 # Read version from the package
 with open('notifications/__init__.py', 'r') as f:
