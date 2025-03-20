@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # Read version from the package
-with open('notification_server.py', 'r') as f:
+with open('notifications/__init__.py', 'r') as f:
     for line in f:
         if line.startswith('__version__'):
             version = line.split('=')[1].strip().strip('"\'')
@@ -21,14 +21,15 @@ setup(
     author="Charles Adedotun",
     author_email="charles.adedotun8@gmail.com",
     url="https://github.com/charles-adedotun/notifications-mcp-server",
-    py_modules=["notification_server"],  # Single-file module
+    packages=find_packages(),
     entry_points={
         "console_scripts": [
-            "claude-notifications=notification_server:main",
+            "claude-notifications=notifications.server:main",
         ],
     },
     install_requires=[
         "fastmcp>=0.4.1",
+        "uv>=0.1.0",
     ],
     extras_require={
         'visual': [
@@ -52,11 +53,9 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Topic :: Utilities",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
 )

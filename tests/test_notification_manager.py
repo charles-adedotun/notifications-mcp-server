@@ -6,10 +6,11 @@ from unittest.mock import patch, MagicMock
 import sys
 import tempfile
 
-# Add the parent directory to the path to import the notification_server module
+# Add the parent directory to the path to import the notification modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from notification_server import NotificationManager
+# Import from the new modular structure
+from notifications.core.notification_manager import NotificationManager
 
 class TestNotificationManager(unittest.TestCase):
     """Tests for the NotificationManager class."""
@@ -55,13 +56,14 @@ class TestNotificationManager(unittest.TestCase):
         """Test that default Claude icon is used when available."""
         # Mock os.path.exists to return True for the default icon path
         def side_effect(path):
-            return path == NotificationManager.DEFAULT_ICON_PATH
+            # Use LOCAL_ICON_PATH instead of DEFAULT_ICON_PATH
+            return path == NotificationManager.LOCAL_ICON_PATH
         mock_exists.side_effect = side_effect
         
         # Clear any existing environment variables
         with patch.dict(os.environ, {}, clear=True):
             icon_path = NotificationManager.get_notification_icon()
-            self.assertEqual(icon_path, NotificationManager.DEFAULT_ICON_PATH)
+            self.assertEqual(icon_path, NotificationManager.LOCAL_ICON_PATH)
     
     @patch('os.path.exists')
     def test_get_notification_icon_none(self, mock_exists):
@@ -74,7 +76,7 @@ class TestNotificationManager(unittest.TestCase):
             icon_path = NotificationManager.get_notification_icon()
             self.assertIsNone(icon_path)
     
-    @patch('notification_server.NotificationManager.send_notification')
+    @patch('notifications.core.notification_manager.NotificationManager.send_notification')
     def test_send_notification_with_pyobjc(self, mock_send):
         """Test sending a notification with PyObjC."""
         # Mock the Foundation module
@@ -102,7 +104,7 @@ class TestNotificationManager(unittest.TestCase):
                 icon_path=self.temp_file.name
             )
     
-    @patch('notification_server.NotificationManager.send_notification')
+    @patch('notifications.core.notification_manager.NotificationManager.send_notification')
     def test_send_notification_with_pync(self, mock_send):
         """Test sending a notification with pync as fallback."""
         # Mock imports to simulate PyObjC not available but pync available

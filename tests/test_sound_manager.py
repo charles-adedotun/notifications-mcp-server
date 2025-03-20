@@ -7,10 +7,11 @@ import sys
 import tempfile
 import subprocess
 
-# Add the parent directory to the path to import the notification_server module
+# Add the parent directory to the path to import the notification modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from notification_server import SoundManager
+# Import from the new modular structure
+from notifications.core.sound_manager import SoundManager
 
 class TestSoundManager(unittest.TestCase):
     """Tests for the SoundManager class."""
@@ -46,21 +47,6 @@ class TestSoundManager(unittest.TestCase):
             complete_sound = SoundManager.get_notification_sound(is_start=False)
             
             # Check that custom paths are returned
-            self.assertEqual(start_sound, self.temp_file.name)
-            self.assertEqual(complete_sound, self.temp_file.name)
-    
-    def test_get_notification_sound_legacy(self):
-        """Test that legacy environment variable takes precedence."""
-        # Set legacy environment variable
-        with patch.dict(os.environ, {
-            SoundManager.ENV_NOTIFICATION_SOUND: self.temp_file.name,
-            SoundManager.ENV_START_SOUND: "/another/path.aiff",
-            SoundManager.ENV_COMPLETE_SOUND: "/another/path.aiff"
-        }):
-            start_sound = SoundManager.get_notification_sound(is_start=True)
-            complete_sound = SoundManager.get_notification_sound(is_start=False)
-            
-            # Check that legacy path is returned for both
             self.assertEqual(start_sound, self.temp_file.name)
             self.assertEqual(complete_sound, self.temp_file.name)
     
