@@ -38,6 +38,7 @@ jobs:
         pip install -e .
     - name: Test module import (basic sanity check)
       run: |
-        python -c "import notification_server; print(notification_server.__version__)"
+        python -c "import notifications; print(notifications.__version__)"
+        python -c "import server; print('Server module imported successfully')"
     # Note: We can't run full tests that depend on afplay in CI
     # but we can at least check that the module imports correctly

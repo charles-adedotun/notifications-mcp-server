@@ -27,12 +27,7 @@ A lightweight MCP server that provides both auditory and visual notifications fo
    cd notifications-mcp-server
    ```
 
-2. **Make the server executable:**
-   ```bash
-   chmod +x notification_server.py
-   ```
-
-3. **Install uv (if not already installed):**
+2. **Install uv (if not already installed):**
    ```bash
    # Option 1: Using curl
    curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -41,60 +36,60 @@ A lightweight MCP server that provides both auditory and visual notifications fo
    brew install uv
    ```
 
-4. **Install dependencies with uv:**
+3. **Install the package and dependencies:**
    ```bash
-   # Install the required fastmcp library
-   uv pip install fastmcp
+   # Install the package in development mode
+   uv pip install -e .
    
-   # Install ONE of these visual notification libraries
-   uv pip install pyobjc-core pyobjc-framework-Cocoa  # Recommended
-   # OR
-   uv pip install pync  # Alternative with simpler API
+   # Or install directly from the repository
+   uv pip install git+https://github.com/charles-adedotun/notifications-mcp-server.git
    
-   # Optional: Install terminal-notifier as a fallback method
-   brew install terminal-notifier
+   # Install visual notification dependencies (recommended)
+   uv pip install pyobjc-core pyobjc-framework-Cocoa
    ```
 
-5. **Register with Claude Desktop:**
+4. **Test the installation:**
    ```bash
-   # Install the MCP server
-   fastmcp install notification_server.py
+   # Run the test script to verify notifications are working
+   python test_notification.py
+   
+   # Run the notification server directly
+   claude-notifications
    ```
 
-6. **Configure Claude Desktop:**
+5. **Configure Claude Desktop:**
 
    Edit Claude's configuration to include the notification server:
 
-   ```bash
-   # First, create a backup of the current config
-   cp ~/Library/Application\ Support/Claude/claude_desktop_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json.backup
-   
-   # Open the config file in a text editor
-   open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json
-   ```
-
-   Add the following to the `mcpServers` section of the JSON file:
-
    ```json
-   "mcpServers": [
-     {
-       "name": "Claude Notifications",
-       "command": "/usr/bin/python3",
-       "args": ["/full/path/to/notification_server.py"],
-       "autoStart": true
-     }
-   ]
+   {
+     "mcpServers": [
+       {
+         "notify-user": {
+           "command": "uv",
+           "args": [
+             "run",
+             "--with",
+             "fastmcp",
+             "fastmcp",
+             "run",
+             "/path/to/server.py"
+           ]
+         }
+       }
+     ]
+   }
    ```
    
-   Replace `/full/path/to/notification_server.py` with the actual path to your notification_server.py file.
+   Replace `/path/to/server.py` with the absolute path to the server.py file on your system.
    
    If the `mcpServers` array already exists, just add this new object to it.
 
-7. **Restart Claude Desktop**
+6. **Restart Claude Desktop**
 
-8. **Test the notifications:**
+7. **Test the notifications:**
    ```bash
-   python3 test_notification.py
+   python test_notification.py
    ```
    This will test all available notification methods and help diagnose any issues.
 
@@ -126,6 +121,56 @@ The notification server uses multiple methods to deliver visual notifications, w
 
 This ensures that at least one notification method should work on your system.
 
+## Project Structure
+
+The Claude Notifications MCP Server is now organized into a modular structure:
+
+```
+notifications/
+├── __init__.py             # Package initialization with version info
+├── core/                   # Core functionality
+│   ├── __init__.py
+│   ├── sound_manager.py    # Sound playback management
+│   └── notification_manager.py  # Visual notification management
+├── platform/               # Platform-specific implementations
+│   ├── __init__.py
+│   └── macos/              # macOS-specific code
+│       ├── __init__.py
+│       ├── sound.py        # macOS sound functions
+│       └── notification.py # macOS notification methods
+├── utils/                  # Utility functions
+│   ├── __init__.py
+│   ├── config.py           # Configuration constants and helpers
+│   └── logging.py          # Logging setup
+└── server.py               # MCP server implementation
+```
+
+This modular structure improves maintainability and makes it easier to add support for additional platforms in the future.
+
+## MCP Configuration for LLMs
+
+To configure an LLM to use this notification server, add the following to your MCP configuration:
+
+```json
+{
+  "notify-user": {
+    "command": "uv",
+    "args": [
+      "run",
+      "--with",
+      "fastmcp",
+      "fastmcp",
+      "run",
+      "/path/to/server.py"
+    ]
+  }
+}
+```
+
+Replace `/path/to/server.py` with the absolute path to the server.py file on your system.
+
+This configuration uses the `uv` command to run the notification server with the required dependencies.
+
 ## Customizing Notifications
 
 ### Sound Notifications
@@ -143,11 +188,7 @@ export CLAUDE_START_SOUND="/System/Library/Sounds/Ping.aiff"
 # For completion notifications
 export CLAUDE_COMPLETE_SOUND="/System/Library/Sounds/Purr.aiff"
 
-# Legacy option (same sound for both)
-export CLAUDE_NOTIFICATION_SOUND="/System/Library/Sounds/Submarine.aiff"
-
-# After setting environment variables, reinstall the server
-fastmcp install notification_server.py
+# After setting environment variables, restart the notification server
 ```
 
 ### Visual Notifications
@@ -159,8 +200,7 @@ export CLAUDE_VISUAL_NOTIFICATIONS="false"
 # Set custom notification icon
 export CLAUDE_NOTIFICATION_ICON="/path/to/your/custom/icon.png"
 
-# After setting environment variables, reinstall the server
-fastmcp install notification_server.py
+# After setting environment variables, restart the notification server
 ```
 
 ### Making Settings Permanent
@@ -254,38 +294,38 @@ You can also use your own .aiff files by providing the full path.
 ### Server Not Connecting
 
 1. **Verify Claude Desktop configuration:**
-   - Check that the path to the notification_server.py file is correct in claude_desktop_config.json
-   - Make sure the server is registered with `fastmcp install notification_server.py`
+   - Check that the path to the server.py file is correct in claude_desktop_config.json
+   - Make sure the server is properly configured in your Claude Desktop settings
 
 2. **Restart everything:**
-   ```bash
-   # Reinstall the server
-   fastmcp install notification_server.py
-   
-   # Restart Claude Desktop
-   ```
+   - Restart Claude Desktop
+   - Restart your computer if necessary
+
+3. **Check dependencies:**
+   - Make sure all required packages are installed: `uv pip list | grep fastmcp`
+   - Try reinstalling: `uv pip install -e .`
+
+4. **Check the server logs:**
+   - Look for error messages in the terminal where the server is running
+   - In Claude Desktop, enable Developer Mode (Help menu → Enable Developer Mode)
+   - Check the MCP Log File in the Developer menu
 
 ## Uninstallation
 
-To remove the notification server:
-
-1. **Edit Claude Desktop configuration file:**
+1. **Remove the repository:**
    ```bash
-   # Open the config file
-   open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json
+   rm -rf /path/to/notifications-mcp-server
    ```
-   
-   Remove the server entry from the `mcpServers` section.
 
 2. **If you installed Python packages:**
    ```bash
    # Remove packages installed with uv
-   uv pip uninstall fastmcp pyobjc-core pyobjc-framework-Cocoa pync
+   uv pip uninstall notifications-mcp-server fastmcp pyobjc-core pyobjc-framework-Cocoa pync
    ```
 
 ## Development
 
-- **Requirements:** Python 3.8+, fastmcp library, notification libraries
+- **Requirements:** Python 3.10+, fastmcp library, notification libraries
 - **Running tests with uv:** 
   ```bash
   uv pip install pytest pytest-cov

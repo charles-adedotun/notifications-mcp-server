@@ -21,7 +21,7 @@ Thank you for your interest in contributing to this project! This document outli
    
 3. Run the server locally:
    ```bash
-   python notification_server.py
+   python server.py
    ```
 
 ## Code Style and Guidelines

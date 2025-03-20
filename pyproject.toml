@@ -1,16 +1,46 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "notifications-mcp-server"
-version = "1.2.1"
 description = "MCP server for Claude Desktop sound and visual notifications on macOS"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
 authors = [
     {name = "Charles Adedotun", email = "charles.adedotun8@gmail.com"}
 ]
-repository = "https://github.com/charles-adedotun/notifications-mcp-server"
-readme = "README.md"
-requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: MacOS X",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Utilities",
+]
+dynamic = ["version"]
 dependencies = [
     "fastmcp>=0.4.1",
+    "uv>=0.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/charles-adedotun/notifications-mcp-server"
+Issues = "https://github.com/charles-adedotun/notifications-mcp-server/issues"
+
+[project.scripts]
+claude-notifications = "notifications.server:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "notifications.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["notifications", "notifications.*"]
 
 [project.optional-dependencies]
 visual = [
@@ -26,15 +56,21 @@ dev = [
     "ruff>=0.0.260",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.ruff]
 line-length = 100
+target-version = "py38"
 
-[tool.hatch.build.targets.wheel]
-packages = ["."]
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = []
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+]
 
-[tool.hatch.build.targets.wheel.sources]
-"notification_server" = "notification_server.py"
+[tool.ruff.lint.isort]
+known-first-party = ["notifications"]
