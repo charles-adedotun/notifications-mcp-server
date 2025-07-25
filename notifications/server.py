@@ -133,6 +133,11 @@ class NotificationServer:
         """Initialize the notification server."""
         self.mcp = FastMCP("notify-user")
         self._setup_tools()
+    
+    @property
+    def name(self):
+        """Proxy the name from the FastMCP instance."""
+        return self.mcp.name
 
     def _setup_tools(self):
         """Set up MCP tools."""
