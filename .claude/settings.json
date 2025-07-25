@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Update",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-review.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
