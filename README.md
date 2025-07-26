@@ -51,10 +51,10 @@ A lightweight MCP server that provides both auditory and visual notifications fo
 4. **Test the installation:**
    ```bash
    # Run the test script to verify notifications are working
-   python test_notification.py
+   uv run python test_notification.py
    
    # Run the notification server directly
-   claude-notifications
+   uv run claude-notifications
    ```
 
 5. **Configure Claude Desktop:**
@@ -63,33 +63,31 @@ A lightweight MCP server that provides both auditory and visual notifications fo
 
    ```json
    {
-     "mcpServers": [
-       {
-         "notify-user": {
-           "command": "uv",
-           "args": [
-             "run",
-             "--with",
-             "fastmcp",
-             "fastmcp",
-             "run",
-             "/path/to/server.py"
-           ]
-         }
+     "mcpServers": {
+       "notify-user": {
+         "command": "uv",
+         "args": [
+           "run",
+           "--with",
+           "fastmcp",
+           "fastmcp",
+           "run",
+           "/path/to/server.py"
+         ]
        }
-     ]
+     }
    }
    ```
    
    Replace `/path/to/server.py` with the absolute path to the server.py file on your system.
    
-   If the `mcpServers` array already exists, just add this new object to it.
+   If the `mcpServers` object already exists, just add this new server configuration to it.
 
 6. **Restart Claude Desktop**
 
 7. **Test the notifications:**
    ```bash
-   python test_notification.py
+   uv run python test_notification.py
    ```
    This will test all available notification methods and help diagnose any issues.
 
@@ -253,7 +251,7 @@ You can also use your own .aiff files by providing the full path.
 
 1. **Run the test script:**
    ```bash
-   python3 test_notification.py
+   uv run python test_notification.py
    ```
    This comprehensive test will try all notification methods and provide diagnostic information.
 
