@@ -1,5 +1,7 @@
 # Notifications MCP Server
 
+[![Tests](https://github.com/charles-adedotun/notifications-mcp-server/actions/workflows/python-test.yml/badge.svg)](https://github.com/charles-adedotun/notifications-mcp-server/actions/workflows/python-test.yml)
+
 MCP server that plays sounds and shows notifications when Claude Desktop completes tasks.
 
 ## Why This Exists
