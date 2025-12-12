@@ -143,7 +143,7 @@ Update config to use custom sound:
 
 ```bash
 # Clone repository
-git clone https://github.com/[YOUR-USERNAME]/notifications-mcp-server.git
+git clone https://github.com/charles-adedotun/notifications-mcp-server.git
 cd notifications-mcp-server
 
 # Install dependencies
