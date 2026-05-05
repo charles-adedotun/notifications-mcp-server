@@ -2,179 +2,102 @@
 
 [![Tests](https://github.com/charles-adedotun/notifications-mcp-server/actions/workflows/python-test.yml/badge.svg)](https://github.com/charles-adedotun/notifications-mcp-server/actions/workflows/python-test.yml)
 
-MCP server that plays sounds and shows notifications when Claude Desktop completes tasks.
+MCP server that lets Claude Desktop or another MCP client trigger macOS sound and visual notifications through a `task_status` tool.
 
-## Why This Exists
+## Current Status
 
-You kick off a long Claude task and tab away to check email, review PRs, or write docs. Ten minutes later you realize Claude finished five minutes ago. This server fixes that. Sound plays, notification appears, you're back in action.
+This is a macOS-focused utility. It is not an automatic Claude completion detector by itself: an MCP client or model must call the `task_status` tool when it wants a notification.
 
-## What It Does
+Recommended profile action: keep as a focused utility repo. Suggested topics: `mcp`, `claude`, `claude-desktop`, `macos`, `notifications`, `python`.
 
-Integrates with Claude Desktop to provide real-time completion feedback:
+## What Works Today
 
-- **System Notifications** - Native macOS notifications when tasks complete
-- **Sound Alerts** - Customizable audio feedback (success, error, warning tones)
-- **Task Status** - Clear indication of completion state
-- **Non-Intrusive** - Works in background, no polling required
+- Registers a `task_status` MCP tool.
+- Plays macOS system sounds with `afplay`.
+- Sends visual notifications using terminal-notifier, AppleScript, PyObjC, or pync fallbacks.
+- Supports separate start and completion sounds.
+- Supports disabling visual notifications through an environment variable.
+- Includes tests for the modular notification and sound managers.
 
-## Tech Stack
+## Important Limitations
 
-- Python 3.8+
-- FastMCP for Model Context Protocol integration
-- macOS Notification Center
-- PyObjC for native system integration
+- macOS is the only implemented platform.
+- Linux and Windows support are not implemented.
+- Notifications only happen when the MCP tool is called.
+- The packaged console script is `claude-notifications`.
+- The Python package is `notifications`; there is no `notifications_mcp_server` module entry point.
+- Custom sound configuration uses environment variables, not the JSON configuration block that older README versions showed.
 
-## Features
-
-### Notification Types
-
-- **Success** - Task completed successfully
-- **Error** - Task failed with error details
-- **Warning** - Task completed with warnings
-- **Info** - General task updates
-
-### Sound Options
-
-- Built-in system sounds
-- Custom sound file support
-- Volume control
-- Sound enable/disable toggle
-
-### Configuration
-
-```json
-{
-  "notifications": {
-    "enabled": true,
-    "sound": true,
-    "sound_file": "Glass",
-    "volume": 0.7
-  }
-}
-```
-
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
 pip install notifications-mcp-server
 ```
 
-### Configuration
+Optional visual notification dependencies:
 
-Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```bash
+pip install "notifications-mcp-server[visual]"
+pip install "notifications-mcp-server[pync]"
+```
+
+For terminal-notifier fallback support:
+
+```bash
+brew install terminal-notifier
+```
+
+## Claude Desktop Configuration
+
+Use the console script installed by the package:
 
 ```json
 {
   "mcpServers": {
     "notifications": {
-      "command": "python",
-      "args": ["-m", "notifications_mcp_server"]
+      "command": "claude-notifications"
     }
   }
 }
 ```
 
-Restart Claude Desktop. Notifications are now active.
+Restart Claude Desktop after changing the config.
 
-## Architecture
+## Configuration
 
-```
-notifications-mcp-server/
-├── core/
-│   ├── notification_manager.py    # Notification logic
-│   └── sound_manager.py           # Audio playback
-├── platform/
-│   ├── macos.py                   # macOS integration
-│   └── base.py                    # Platform interface
-├── utils/
-│   ├── config.py                  # Configuration management
-│   └── logger.py                  # Logging utilities
-└── server.py                      # MCP server entry point
-```
-
-### Design Principles
-
-1. **Modular Platform Support** - Clean abstraction for future Linux/Windows support
-2. **Zero Configuration** - Works out of box with sensible defaults
-3. **Non-Blocking** - Never delays Claude's operations
-4. **Fail Safe** - Notification failures don't break Claude tasks
-
-## Platform Support
-
-- **macOS** - Full support (notifications + sound)
-- **Linux** - Planned (via notify-send)
-- **Windows** - Planned (via Windows Toast)
-
-## Usage Examples
-
-Claude Desktop automatically triggers notifications. No manual invocation needed.
-
-### Custom Sounds
-
-Place custom audio files in `~/.config/notifications-mcp/sounds/`:
+Environment variables:
 
 ```bash
-mkdir -p ~/.config/notifications-mcp/sounds
-cp my-notification.wav ~/.config/notifications-mcp/sounds/
+export CLAUDE_START_SOUND="/System/Library/Sounds/Glass.aiff"
+export CLAUDE_COMPLETE_SOUND="/System/Library/Sounds/Hero.aiff"
+export CLAUDE_VISUAL_NOTIFICATIONS="true"
+export CLAUDE_NOTIFICATION_ICON="/path/to/icon.png"
 ```
 
-Update config to use custom sound:
+If no custom sounds are set, the server uses macOS system sounds.
+
+## MCP Tool
+
+`task_status`
+
+Input:
 
 ```json
 {
-  "notifications": {
-    "sound_file": "my-notification.wav"
-  }
+  "message": "Task completed"
 }
 ```
 
-## Future Ideas
-
-- **Linux Support** - Native notification support via libnotify
-- **Windows Support** - Windows 10/11 Toast notifications
-- **Custom Sound Uploads** - Web interface for managing notification sounds
-- **Slack Integration** - Post completion updates to Slack channels
-- **Discord Integration** - Send notifications to Discord webhooks
-- **Notification History** - Track and review past task completions
-- **Smart Notifications** - Only notify for tasks exceeding time threshold
-- **Team Notifications** - Share task completion across team members
+Messages containing `start` or `processing` are treated as start notifications. Other messages are treated as completion notifications.
 
 ## Development
 
 ```bash
-# Clone repository
 git clone https://github.com/charles-adedotun/notifications-mcp-server.git
 cd notifications-mcp-server
-
-# Install dependencies
 pip install -e ".[dev]"
-
-# Run tests
 pytest
-
-# Type checking
-mypy src/
 ```
-
-## Troubleshooting
-
-### Notifications Not Appearing
-
-1. Check macOS Notification Center permissions
-2. Verify Claude Desktop config syntax
-3. Check server logs: `tail -f ~/.config/notifications-mcp/logs/server.log`
-
-### Sound Not Playing
-
-1. Verify sound file exists
-2. Check volume settings
-3. Test sound file: `afplay /path/to/sound.wav`
-
-## Contributing
-
-Found a bug? Open an issue with reproduction steps. Built Windows/Linux support? Submit a PR. Keep platform modules isolated and tested.
 
 ## License
 
