@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 # Add the parent directory to the path to import the notification modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -344,7 +344,7 @@ class TestNotificationManager(unittest.TestCase):
         mock_run.side_effect = [
             subprocess.CalledProcessError(returncode=1, cmd=["osascript"], stderr=b""),
             MagicMock(returncode=0, stdout=b'/usr/local/bin/terminal-notifier'),  # which
-            MagicMock(returncode=0, stdout=b'', stderr=b''),                       # terminal-notifier
+            MagicMock(returncode=0, stdout=b'', stderr=b''),  # terminal-notifier
         ]
 
         result = NotificationManager.send_notification(
