@@ -8,8 +8,6 @@ MCP server that lets Claude Desktop or another MCP client trigger macOS sound an
 
 This is a macOS-focused utility. It is not an automatic Claude completion detector by itself: an MCP client or model must call the `task_status` tool when it wants a notification.
 
-Recommended profile action: keep as a focused utility repo. Suggested topics: `mcp`, `claude`, `claude-desktop`, `macos`, `notifications`, `python`.
-
 ## What Works Today
 
 - Registers a `task_status` MCP tool.
@@ -89,6 +87,31 @@ Input:
 ```
 
 Messages containing `start` or `processing` are treated as start notifications. Other messages are treated as completion notifications.
+
+## Verification Demo
+
+Run the local diagnostic script on macOS to test the available notification paths:
+
+```bash
+python3 test_notification.py
+```
+
+The MCP tool returns a compact status object after attempting sound and visual notification delivery:
+
+```json
+{
+  "status": "success",
+  "message": "Task completed",
+  "sound": "/System/Library/Sounds/Hero.aiff",
+  "visual": true
+}
+```
+
+For a quieter smoke test that skips visual notification prompts:
+
+```bash
+CLAUDE_VISUAL_NOTIFICATIONS=false claude-notifications
+```
 
 ## Development
 
