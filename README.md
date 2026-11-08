@@ -28,26 +28,51 @@ This is a macOS-focused utility. It is not an automatic Claude completion detect
 
 ## Installation
 
+Run directly from GitHub with `uvx` (zero manual virtualenv setup required):
+
 ```bash
-pip install notifications-mcp-server
+uvx --from git+https://github.com/charles-adedotun/notifications-mcp-server claude-notifications
+```
+
+Or install into your Python environment directly from GitHub:
+
+```bash
+pip install "git+https://github.com/charles-adedotun/notifications-mcp-server.git"
 ```
 
 Optional visual notification dependencies:
 
 ```bash
-pip install "notifications-mcp-server[visual]"
-pip install "notifications-mcp-server[pync]"
+pip install "notifications-mcp-server[visual] @ git+https://github.com/charles-adedotun/notifications-mcp-server.git"
+pip install "notifications-mcp-server[pync] @ git+https://github.com/charles-adedotun/notifications-mcp-server.git"
 ```
 
-For terminal-notifier fallback support:
+For `terminal-notifier` fallback support on macOS:
 
 ```bash
 brew install terminal-notifier
 ```
 
-## Claude Desktop Configuration
+## Claude Desktop / Claude Code Configuration
 
-Use the console script installed by the package:
+Configure via `uvx` (recommended):
+
+```json
+{
+  "mcpServers": {
+    "notifications": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/charles-adedotun/notifications-mcp-server",
+        "claude-notifications"
+      ]
+    }
+  }
+}
+```
+
+Or if installed globally via `pip` / `uv tool install`:
 
 ```json
 {

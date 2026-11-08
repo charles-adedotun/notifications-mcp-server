@@ -100,6 +100,21 @@ class TestNotificationManager(unittest.TestCase):
         self.assertIn("Test Message", cmd[2])
 
     @patch('notifications.core.notification_manager.subprocess.run')
+    def test_send_notification_applescript_escapes_quotes(self, mock_run):
+        """AppleScript method escapes double quotes and backslashes in title and message."""
+        mock_run.return_value = MagicMock(returncode=0, stdout=b'', stderr=b'')
+
+        result = NotificationManager.send_notification_applescript(
+            title='Claude "Build" \\ Status',
+            message='Finished "unit tests" in C:\\repo'
+        )
+
+        self.assertTrue(result)
+        script_arg = mock_run.call_args[0][0][2]
+        self.assertIn(r'Claude \"Build\" \\ Status', script_arg)
+        self.assertIn(r'Finished \"unit tests\" in C:\\repo', script_arg)
+
+    @patch('notifications.core.notification_manager.subprocess.run')
     def test_send_notification_applescript_failure(self, mock_run):
         """AppleScript method returns False when osascript exits non-zero."""
         import subprocess

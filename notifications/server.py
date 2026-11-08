@@ -5,6 +5,7 @@ MCP server implementation for Claude Notifications.
 import json
 import os
 import subprocess
+import sys
 from typing import Dict
 
 from fastmcp import FastMCP
@@ -292,30 +293,30 @@ class NotificationServer:
 
 def main():
     """Main entry point for the notification server."""
-    print(f"🔔 Claude Notification Server v{__version__}")
-    print("📋 Available tool:")
-    print("  • task_status: MUST be used at the start and end of every interaction")
+    print(f"🔔 Claude Notification Server v{__version__}", file=sys.stderr)
+    print("📋 Available tool:", file=sys.stderr)
+    print("  • task_status: MUST be used at the start and end of every interaction", file=sys.stderr)
 
     # Verify components
     sound_success = verify_sounds()
 
     if sound_success:
-        print("✅ All sound files verified")
+        print("✅ All sound files verified", file=sys.stderr)
     else:
-        print("⚠️ Some sound files could not be found. Check configurations.")
+        print("⚠️ Some sound files could not be found. Check configurations.", file=sys.stderr)
 
     # Now handle visual notifications with explicit permission check
     if NotificationManager.are_visual_notifications_enabled():
-        print("🔔 Visual notifications are enabled, configuring...")
+        print("🔔 Visual notifications are enabled, configuring...", file=sys.stderr)
         visual_success = verify_notification_components()
 
         if visual_success:
-            print("✅ Visual notification components verified")
+            print("✅ Visual notification components verified", file=sys.stderr)
         else:
-            print("⚠️ Visual notifications may not work correctly. See warnings above.")
-            print("💡 Try running: python3 test_notification.py for more detailed testing")
+            print("⚠️ Visual notifications may not work correctly. See warnings above.", file=sys.stderr)
+            print("💡 Try running: python3 test_notification.py for more detailed testing", file=sys.stderr)
     else:
-        print("ℹ️ Visual notifications are disabled")
+        print("ℹ️ Visual notifications are disabled", file=sys.stderr)
 
     # Create and run the server
     server = NotificationServer()

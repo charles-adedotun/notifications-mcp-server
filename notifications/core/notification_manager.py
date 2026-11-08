@@ -68,6 +68,10 @@ class NotificationManager:
             True if notification was sent successfully, False otherwise
         """
         try:
+            # Escape backslashes and double-quotes to prevent AppleScript syntax/injection errors
+            safe_message = message.replace("\\", "\\\\").replace('"', '\\"')
+            safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
+
             # Create an enhanced AppleScript that works better in MCP context
             script = f'''
             tell application "System Events"
@@ -75,7 +79,7 @@ class NotificationManager:
                 set frontApp to name of first application process whose frontmost is true
 
                 # Ensure notification is shown no matter what application is focused
-                display notification "{message}" with title "{title}"
+                display notification "{safe_message}" with title "{safe_title}"
 
                 # Give the notification time to display
                 delay 1
