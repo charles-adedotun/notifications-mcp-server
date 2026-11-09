@@ -295,7 +295,10 @@ def main():
     """Main entry point for the notification server."""
     print(f"🔔 Claude Notification Server v{__version__}", file=sys.stderr)
     print("📋 Available tool:", file=sys.stderr)
-    print("  • task_status: MUST be used at the start and end of every interaction", file=sys.stderr)
+    print(
+        "  • task_status: MUST be used at the start and end of every interaction",
+        file=sys.stderr,
+    )
 
     # Verify components
     sound_success = verify_sounds()
@@ -313,8 +316,14 @@ def main():
         if visual_success:
             print("✅ Visual notification components verified", file=sys.stderr)
         else:
-            print("⚠️ Visual notifications may not work correctly. See warnings above.", file=sys.stderr)
-            print("💡 Try running: python3 test_notification.py for more detailed testing", file=sys.stderr)
+            print(
+                "⚠️ Visual notifications may not work correctly. See warnings above.",
+                file=sys.stderr,
+            )
+            print(
+                "💡 Try running: python3 test_notification.py for more detailed testing",
+                file=sys.stderr,
+            )
     else:
         print("ℹ️ Visual notifications are disabled", file=sys.stderr)
 
