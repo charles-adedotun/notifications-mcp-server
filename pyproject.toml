@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "notifications-mcp-server"
 description = "MCP server for Claude Desktop sound and visual notifications on macOS"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Charles Adedotun", email = "charles.adedotun8@gmail.com"}
